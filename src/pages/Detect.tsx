@@ -3,6 +3,8 @@ import { Upload, X, Loader2, AlertTriangle, CheckCircle, Leaf } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { analyzePlantDisease } from "@/lib/plantAI";
+import { useToast } from "@/hooks/use-toast";
 
 interface DetectionResult {
   disease: string;
@@ -44,6 +46,7 @@ const Detect = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<DetectionResult | null>(null);
+  const { toast } = useToast();
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -59,12 +62,29 @@ const Detect = () => {
     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
   }, [handleFile]);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!image) return;
+    
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setResult(mockResults[Math.floor(Math.random() * mockResults.length)]);
+    setResult(null);
+    
+    try {
+      const detectionResult = await analyzePlantDisease(image);
+      setResult(detectionResult);
+      toast({
+        title: "Analysis Complete",
+        description: `Detected: ${detectionResult.disease}`,
+      });
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze the image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsAnalyzing(false);
-    }, 2500);
+    }
   };
 
   const clearImage = () => {
